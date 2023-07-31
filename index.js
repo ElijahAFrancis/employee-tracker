@@ -1,6 +1,7 @@
 const inquirer = require('inquirer');
 const db = require('./db/db');
 
+//connecting to sql DB
 db.connect(err => {
     if (err) {
         console.error(err)
@@ -10,6 +11,7 @@ db.connect(err => {
     }
 });
 
+//function for inquirer prompts
 function start() {
     inquirer.prompt([{
         type: 'list',
@@ -17,7 +19,10 @@ function start() {
         message: 'What would you like to do?',
         choices: ['View Departments', 'View Roles', 'View Employees', 'Add Department', 'Add Role', 'Add Employee', 'Update Employee Role', 'Quit']
     }]).then((selection) => {
+        //each option has an if statement that performs the selected option
         if (selection.prompt === 'View Departments') {
+            //gets all data from department table and logs the table in the console.
+            //each "view" option does the same thing for each table
             db.query(`select * from department`, (err, result) => {
                 if (err) {
                     console.error(err)
@@ -45,6 +50,7 @@ function start() {
                 }
             });
         } else if (selection.prompt === 'Add Department') {
+            //gets the required information to create a new department
             inquirer.prompt([{
                 type: 'input',
                 name: 'department',
@@ -58,6 +64,7 @@ function start() {
                     }
                 }
             }]).then((responses) => {
+                //inserts new department into the department table
                 db.query(`insert into department (department_name) VALUES (?)`, [responses.department], (err, result) => {
                     if (err) {
                         console.error(err)
@@ -68,8 +75,10 @@ function start() {
                 });
             })
         } else if (selection.prompt === 'Add Role') {
+            //gets required information for new role
             var roleDepartment
             var departmentArr = []
+            //pulls all data from department table for later question
             db.query(`select * from department`, (err, departments) => {
                     if (err) {
                         console.error(err)
@@ -112,11 +121,13 @@ function start() {
                             choices: departmentArr
                         }
                     ]).then((responses) => {
+                        //finds the selected department
                         for (var i = 0; i < departments.length; i++) {
                             if (departments[i].department_name === responses.department) {
                                 roleDepartment = departments[i];
                             }
                         }
+                        //inserts responses into role table
                         db.query(`insert into role (title, salary, department_id) values (?, ?, ?)`, [responses.role, responses.salary, roleDepartment.id], (err, result) => {
                             if (err) {
                                 console.error(err)
@@ -129,10 +140,16 @@ function start() {
                 }
             });
         } else if (selection.prompt === 'Add Employee') {
+            //asks for required information for new employee
+            //gets all data from role table for later question
             db.query(`select * from role`, (err, roles) => {
+                var roleArr = []
                 if (err) {
                     console.error(err)
                 } else {
+                    for (var i = 0; i < roles.length; i++) {
+                        roleArr.push(roles[i].title);
+                    }
                     inquirer.prompt([
                         {
                             type: 'input',
@@ -164,13 +181,7 @@ function start() {
                             type: 'list',
                             name: 'role',
                             message: 'What is the employees role?',
-                            choices: () => {
-                                var roleArr = [];
-                                for (var i = 0; i < roles.length; i++) {
-                                    roleArr.push(roles[i].title);
-                                }
-                                return roleArr
-                            }
+                            choices: roleArr
                         },
                         {
                             type: 'input',
@@ -196,7 +207,7 @@ function start() {
                             if (err) {
                                 console.error(err)
                             } else {
-                                console.log(`Added ${responses.firstName} ${responses.lastName} to the database.`)
+                                console.log(`${responses.firstName} ${responses.lastName} added to employee database`)
                                 start();
                             }
                         })
@@ -205,34 +216,35 @@ function start() {
                 }
             });
         } else if (selection.prompt === 'Update Employee Role') {
+            var employeeArr = []
+            var newEmployeeArray = []
+            var roleArr = []
+            var newRoleArray = []
+            //gets data from employee and role databases and creates arrays for later questions
             db.query(`select * from employee, role`, (err, results) => {
+                for (var i = 0; i < results.length; i++) {
+                    employeeArr.push(results[i].last_name)
+                }
+                for (var i = 0; i < results.length; i++) {
+                    roleArr.push(results[i].title)
+                }
+                newEmployeeArray = [...new Set(employeeArr)]
+                newRoleArray = [...new Set(roleArr)]
                 inquirer.prompt([
                     {
                         type: 'list',
                         name: 'employee',
                         message: 'Who do you want to update?',
-                        choices: () => {
-                            var employeeArr = [];
-                            for (var i = 0; i < results.length; i++) {
-                                employeeArr.push(results[i].last_name);
-                            }
-                            var newEmployeeArray = [...new Set(employeeArr)];
-                            return newEmployeeArray;
-                        }
+                        choices: newEmployeeArray
                     },
                     {
                         type: 'list',
                         name: 'role',
                         message: 'What will their new role be?',
-                        choices: () => {
-                        var roleArr = [];
-                            for (var i = 0; i < results.length; i++) {
-                                roleArr.push(results[i].title);
-                            }                                var newRoleArray = [...new Set(roleArr)];
-                               return newRoleArray;
-                        }
+                        choices: newRoleArray
                     }
                 ]).then((responses) => {
+                    //finds role that matches selected role
                     db.query(`select * from role`, (err, roles) => {
                         var roleId
                         var employeeId
@@ -241,6 +253,7 @@ function start() {
                             roleId = roles[i].id;
                             }
                         }
+                        //finds employee that matches selected employee
                         db.query(`select * from employee`, (err, employees) => {
 
                             for (var i = 0; i < employees.length; i++) {
@@ -248,11 +261,12 @@ function start() {
                                     employeeId = employees[i].id;
                                 }
                             }
+                            //updates selected employee's role id in database
                             db.query(`update employee set role_id = ? where id = ?`, [roleId, employeeId], (err, result) => {
                                 if (err) {
                                     console.error(err)
                                 } else {
-                                    console.log(`${responses.employee} role updated`)
+                                    console.log(`${responses.employee}'s role updated`)
                                     start();
                                 }
                             });
@@ -261,8 +275,11 @@ function start() {
                 })
             });
         } else if (selection.prompt === 'Quit') {
+            //ends inquirer and disconnects from db
             db.end();
             console.log("Thank you!");
         }
     })
 };
+//Became very tedious and difficult to follow using only arrow functions and then statements.
+//In the future I'd separate each option into it's own function to make it easier to comprehend.
