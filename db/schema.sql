@@ -5,20 +5,23 @@ use employee_db;
 
 create table department (
     id int primary key not null auto_increment,
-    name varchar(30) not null,
+    department_name varchar(30) not null
 );
 
 create table role (
-    id int primary key not null,
+    id int primary key not null auto_increment,
     title varchar(30) not null,
     salary decimal,
-    foreign key (department_id) references department(id) on delete set null,
+    department_id int,
+    foreign key (department_id) references department(id) on delete set null
 );
 
 create table employee (
-    id int primary key not null,
+    id int primary key not null auto_increment,
     first_name varchar(30) not null,
     last_name varchar(30) not null,
-    foreign key (role_id) references role(id) on delete set null,
+    role_id int,
     manager_id int,
+    foreign key (role_id) references role(id) on delete set null,
+    foreign key (manager_id) references employee(id) on delete set null
 );
